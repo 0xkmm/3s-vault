@@ -11,7 +11,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract VaultToken is OFT {
     ///@dev -> The address of the vault
-    address immutable vault;
+    address public immutable vault;
 
     /////// CONSTRUCTOR ///////
 

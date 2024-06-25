@@ -22,4 +22,9 @@ contract VaultTest is Test {
     function test_everGreen() public pure {
         assert(true);
     }
+
+    function test_wireUp() public view {
+        assert(token.vault() == address(vault));
+        assert(address(vault.oftToken()) == address(token));
+    }
 }

@@ -32,7 +32,7 @@ contract Vault is UUPSUpgradeable, OwnableUpgradeable {
     }
 
     IERC20 lpToken;
-    IERC20 oftToken;
+    IERC20 public oftToken;
 
     uint32 lastId;
     mapping(uint32 id => Deposit deposit) deposits;
