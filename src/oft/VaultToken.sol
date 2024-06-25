@@ -11,12 +11,12 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract VaultToken is OFT {
     ///@dev -> The address of the vault
-    address vault;
+    address immutable vault;
 
     /////// CONSTRUCTOR ///////
 
     constructor(string memory _name, string memory _symbol, address _layerZeroEndpoint, address _owner, address _vault)
-        OFT(_name, symbol, _layer, _owner)
+        OFT(_name, _symbol, _layerZeroEndpoint, _owner)
         Ownable(_owner)
     {
         vault = _vault;
@@ -43,7 +43,7 @@ contract VaultToken is OFT {
     /////// INTERNAL ///////
 
     /// @dev Private method is used instead of inlining into modifier because modifiers are copied into each method
-    function _checkOnlyVault() internal {
+    function _checkOnlyVault() internal view {
         if (msg.sender != vault) revert OnlyVaultAllowed();
     }
 }

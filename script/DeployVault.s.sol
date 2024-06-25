@@ -3,11 +3,10 @@ pragma solidity 0.8.26;
 
 import {Vault} from "../src/vault/Vault.sol";
 import {VaultToken} from "../src/oft/VaultToken.sol";
+import {Config} from "./Config.sol";
 
 import {Script} from "forge-std/Script.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-
-import {Config} from "./Config.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract DeployVault is Script, Config {
     function run() public returns (Vault vault, VaultToken token) {
@@ -15,13 +14,15 @@ contract DeployVault is Script, Config {
     }
 
     function deploy(address _owner) public returns (Vault vault, VaultToken token) {
-        bytes32 salt = keccak256(abi.encodePacked(block.chainid, _owner));
+        address lpToken = address(0);
 
-        address lpToken = 0x000;
-        address vaultAddress = Create2.computeAddress(salt, type(Vault).creationCode);
+        (address layerZeroEndpoint) = config();
 
-        token = new VaultToken("3S-OFT", "3S", 0x00, _owner, vaultAddress);
-        vault = Vault(Create2.deploy(salt, type(Vault).creationCode));
+        address impl = address(new Vault());
+        address vaultProxy = address(new ERC1967Proxy(impl, ""));
+
+        token = new VaultToken("3S-OFT", "3S", layerZeroEndpoint, _owner, address(vaultProxy));
+        vault = Vault(vaultProxy);
 
         vault.initialize(lpToken, address(token));
     }

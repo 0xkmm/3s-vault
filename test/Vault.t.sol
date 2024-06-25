@@ -11,13 +11,15 @@ contract VaultTest is Test {
     Vault vault;
     VaultToken token;
 
+    address owner = makeAddr("Owner");
+
     function setUp() public {
         DeployVault deployer = new DeployVault();
 
-        (vault, token) = deployer.deploy();
+        (vault, token) = deployer.deploy(owner);
     }
 
-    function test_everGreen() public {
+    function test_everGreen() public pure {
         assert(true);
     }
 }
