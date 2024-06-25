@@ -1,0 +1,8 @@
+{
+    "wake.compiler.solc.remappings": ["@openzeppelin/=lib/openzeppelin-contracts/", "@uniswap/v3-core/contracts/=lib/v3-core/contracts/","@uniswap/v3-periphery/contracts/=lib/v3-periphery/contracts/" ,"forge-std=lib/forge-std/src",  "@layerzerolabs/lz-evm-oapp-v2/contracts/=lib/layerzero-v2/packages/layerzero-v2/evm/oapp/contracts/","@openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts"],
+    "editor.formatOnSave": true,
+    "[solidity]": {
+    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
+    },
+    "solidity.formatter": "forge",
+}
