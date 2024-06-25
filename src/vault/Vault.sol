@@ -5,8 +5,24 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {VaultToken} from "../oft/VaultToken.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import {RewardsLogic} from "../libs/RewardsLogic.sol";
+
+struct Deposit {
+    ///@dev -> The address of the user who initiated a deposit
+    address depositor;
+    ///@dev -> The amount of LP tokens deposited
+    uint160 amount;
+    ///@dev -> The already claimed amount of the deposit
+    uint160 claimedAmount;
+    ///@dev -> The duration for the locked tokens
+    uint32 lockedFor;
+    ///@dev -> The time at which the user deposited
+    uint32 depositedAt;
+}
 
 /**
  * @title Vault
@@ -18,29 +34,20 @@ contract Vault is UUPSUpgradeable, OwnableUpgradeable {
 
     /////// STATE ///////
 
-    struct Deposit {
-        ///@dev -> The address of the user who initiated a deposit
-        address depositor;
-        ///@dev -> The amount of LP tokens deposited
-        uint160 amount;
-        ///@dev -> The already claimed amount of the deposit
-        uint160 claimedAmount;
-        ///@dev -> The duration for the locked tokens
-        uint32 lockedFor;
-        ///@dev -> The time at which the user deposited
-        uint32 depositedAt;
-    }
+    ///@dev Storage gap just in case we decide to inherit from a contract with state
+    uint256[50] gap;
 
     IERC20 lpToken;
-    IERC20 public oftToken;
+    VaultToken public oftToken;
 
     uint32 lastId;
+    uint160 totalDepositedAmount;
     mapping(uint32 id => Deposit deposit) deposits;
 
     /////// ERRORS ///////
 
     error NotDepositor();
-    error InvalidInput();
+    error AmountMustBeGreaterThanZero();
     error InvalidLockTime();
     error InsufficientClaimAmount();
 
@@ -56,7 +63,7 @@ contract Vault is UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        oftToken = IERC20(_oftToken);
+        oftToken = VaultToken(_oftToken);
         lpToken = IERC20(_lpToken);
     }
 
@@ -70,33 +77,37 @@ contract Vault is UUPSUpgradeable, OwnableUpgradeable {
     ///////  EXTERNAL ///////
 
     function deposit(uint160 _amount, uint32 _lockFor) external {
-        if (_gt0(_amount)) revert InvalidInput();
-        if (!_isValidLockTime(_lockFor)) revert InvalidLockTime();
+        if (_gt0(_amount)) revert AmountMustBeGreaterThanZero();
+
+        uint8 rewardMultiplier = RewardsLogic.rewardMultiplier(_lockFor);
+
+        if (!_gt0(rewardMultiplier)) revert InvalidLockTime();
 
         Deposit storage currDeposit = deposits[++lastId];
 
-        currDeposit.amount = _amount;
+        uint160 adjustedDeposit = _amount * rewardMultiplier;
+
+        currDeposit.depositor = msg.sender;
         currDeposit.depositedAt = uint32(block.timestamp);
         currDeposit.lockedFor = _lockFor;
+
+        currDeposit.amount = adjustedDeposit;
+        totalDepositedAmount += adjustedDeposit;
 
         lpToken.safeTransferFrom(msg.sender, address(this), _amount);
     }
 
-    function claim(uint32 _id, uint160 _amount) external onlyDepositOwner(_id) {
-        if (_gt0(_amount)) revert InvalidInput();
+    function claim(uint32 _id) external onlyDepositOwner(_id) {
+        Deposit memory currDeposit = deposits[_id];
+        uint160 availableClaimAmount =
+            RewardsLogic.getPendingRewards(currDeposit, oftToken.YEARLY_EMISSION_RATE(), totalDepositedAmount);
 
-        Deposit storage currDeposit = deposits[_id];
+        if (!_gt0(availableClaimAmount)) revert InsufficientClaimAmount();
 
-        uint160 availableClaimAmount = _claimableAmount(currDeposit);
+        deposits[_id].claimedAmount += availableClaimAmount;
 
-        if (_gteq(_amount, availableClaimAmount)) revert InsufficientClaimAmount();
-
-        currDeposit.claimedAmount += _amount;
-
-        //token.mint(msg.sender, _amount)
+        oftToken.mint(msg.sender, availableClaimAmount);
     }
-
-    function _claimableAmount(Deposit storage deposit) internal returns (uint160) {}
 
     /////// INTERNAL ///////
 
@@ -109,13 +120,5 @@ contract Vault is UUPSUpgradeable, OwnableUpgradeable {
 
     function _gt0(uint256 number) internal pure returns (bool) {
         return number > 0;
-    }
-
-    function _gteq(uint256 num1, uint256 num2) internal pure returns (bool) {
-        return num1 >= num2;
-    }
-
-    function _isValidLockTime(uint32 _lockTime) internal pure returns (bool) {
-        return _lockTime == 180 days || _lockTime == 365 days || _lockTime == 730 days || _lockTime == 1460 days;
     }
 }

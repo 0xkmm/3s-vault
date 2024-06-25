@@ -12,6 +12,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract VaultToken is OFT {
     ///@dev -> The address of the vault
     address public immutable vault;
+    uint256 public YEARLY_EMISSION_RATE = 1e10;
 
     /////// CONSTRUCTOR ///////
 
